@@ -209,7 +209,7 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         } elseif ($this->settings['location']) {
             $this->forward('show');
         } else {
-            $this->getLocationsByDefaultConstraints();
+            $constraint = $this->getLocationsByDefaultConstraints();
         }
 
         $this->addCategoryFromSettingsToView();
@@ -283,6 +283,7 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $this->view->assign('numberOfLocations', count($locations));
             $this->view->assign('locations', $locations);
         }
+        return $constraint;
     }
 
     public function showAction(Location $location = null)

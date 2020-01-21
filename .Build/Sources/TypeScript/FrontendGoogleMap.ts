@@ -9,7 +9,7 @@
  * LICENSE.txt file that was distributed with this source code.
  */
 
-
+import * as $ from 'jquery';
 import FrontendMap from './FrontendMap';
 
 /**
@@ -20,6 +20,11 @@ import FrontendMap from './FrontendMap';
 class FrontendGoogleMap extends FrontendMap {
   private map: google.maps.Map;
   private infoWindow: google.maps.InfoWindow;
+
+  /**
+   * Prototype for overview layer
+   */
+  private overlayView: any;
 
   /**
    * Initialize map
@@ -43,7 +48,7 @@ class FrontendGoogleMap extends FrontendMap {
       }
     };
 
-    this.map = new google.maps.Map($('#tx_storefinder_map')[0], mapOptions);
+    this.map = new google.maps.Map(document.getElementById('tx_storefinder_map'), mapOptions);
 
     if (this.mapConfiguration.afterSearch === 0 && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
@@ -61,6 +66,89 @@ class FrontendGoogleMap extends FrontendMap {
    * Initialize information layer on map
    */
   initializeLayer(this: FrontendGoogleMap) {
+    this.overlayView = class OverlayView extends google.maps.OverlayView implements OverlayView {
+      image: HTMLImageElement;
+      imageContainer: HTMLElement;
+      svgUri: string;
+      bounds: google.maps.LatLngBounds;
+      map: google.maps.Map;
+
+      constructor(svgUri: string, bounds: google.maps.LatLngBounds) {
+        super();
+
+        this.svgUri = svgUri;
+        this.bounds = bounds;
+      }
+
+      onAdd(this: OverlayView) {
+        let div = document.createElement('div');
+        div.style.position = 'absolute';
+
+        // Load the inline svg element and attach it to the div.
+        this.image = document.createElement('img');
+        this.image.src = this.svgUri;
+        this.image.style.width = '100%';
+        this.image.style.height = '100%';
+
+        div.appendChild(this.image);
+        this.imageContainer = div;
+        // Add the element to the "overlayLayer" pane.
+        let panes = this.getPanes();
+        panes.overlayLayer.appendChild(div);
+        console.log(this, 'add');
+      }
+
+      draw(this: OverlayView) {
+        let overlayProjection = this.getProjection(),
+          sw = overlayProjection.fromLatLngToDivPixel(this.bounds.getSouthWest()),
+          ne = overlayProjection.fromLatLngToDivPixel(this.bounds.getNorthEast());
+
+        let div = this.imageContainer;
+        div.style.left = sw.x + 'px';
+        div.style.top = ne.y + 'px';
+        div.style.width = (ne.x - sw.x) + 'px';
+        div.style.height = (sw.y - ne.y) + 'px';
+      };
+
+      onRemove(this: OverlayView) {
+        this.imageContainer.parentNode.removeChild(this.imageContainer);
+        this.imageContainer = null;
+      }
+
+      hide(this: OverlayView): void {
+        if (this.imageContainer) {
+          // The visibility property must be a string enclosed in quotes.
+          this.imageContainer.style.visibility = 'hidden';
+        }
+      }
+
+      show(this: OverlayView): void {
+        if (this.imageContainer) {
+          this.imageContainer.style.visibility = 'visible';
+        }
+      }
+
+      toggle(this: OverlayView): void {
+        if (this.imageContainer) {
+          if (this.imageContainer.style.visibility === 'hidden') {
+            this.show();
+          } else {
+            this.hide();
+          }
+        }
+      }
+
+      toggleDOM(this: OverlayView): void {
+        if (this.getMap()) {
+          // Note: setMap(null) calls OverlayView.onRemove()
+          this.setMap(null);
+        } else {
+          // Note: setMap(this.map) calls OverlayView.onAdd()
+          this.setMap(this.map);
+        }
+      }
+    };
+
     if (this.mapConfiguration.apiV3Layers.indexOf('traffic') > -1) {
       let trafficLayer = new google.maps.TrafficLayer();
       trafficLayer.setMap(this.map);
@@ -94,7 +182,14 @@ class FrontendGoogleMap extends FrontendMap {
   /**
    * Create marker and add to map
    */
-  createMarker(location: Location, icon: string): google.maps.Marker {
+  createMarker(location: Location) {
+    let icon = '';
+    if (location.information.icon) {
+      icon = location.information.icon;
+    } else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
+      icon = this.mapConfiguration.markerIcon;
+    }
+
     let options = {
         title: location.name,
         position: new google.maps.LatLng(location.lat, location.lng),
@@ -107,7 +202,24 @@ class FrontendGoogleMap extends FrontendMap {
       this.showInformation(location, marker);
     });
 
-    return marker;
+    location.marker = marker;
+  }
+
+  /**
+   * Create an info layer and add to map
+   */
+  createLayer(location: Location) {
+    if (!location.information.layerCoords || location.information.layerCoords.length === 0) {
+      let svgBounds = new google.maps.LatLngBounds(
+        new google.maps.LatLng(location.lat - 0.01, location.lng - 0.01),
+        new google.maps.LatLng(location.lat + 0.01, location.lng + 0.01)
+      );
+
+      let layer = new this.overlayView(location.information.layer, svgBounds);
+      layer.setMap(this.map);
+
+      location.marker = layer;
+    }
   }
 
   /**
@@ -147,16 +259,16 @@ class FrontendGoogleMap extends FrontendMap {
       apiUrl = self.mapConfiguration.apiUrl;
     }
 
-    let $jsDeferred = $.Deferred(),
-      $jsFile = $('<script/>', {
+    let jsDeferred = $.Deferred(),
+      jsFile = $('<script/>', {
         src: apiUrl + parameter,
         crossorigin: ''
       }).appendTo('head');
 
-    $jsDeferred.resolve($jsFile);
+    jsDeferred.resolve(jsFile);
 
     $.when(
-      $jsDeferred.promise()
+      jsDeferred.promise()
     ).done(function () {
       function wait(this: FrontendMap) {
         if (typeof google !== 'undefined') {

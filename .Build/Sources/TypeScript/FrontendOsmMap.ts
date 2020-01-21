@@ -98,7 +98,14 @@ class FrontendOsmMap extends FrontendMap {
   /**
    * Create marker and add to map
    */
-  createMarker(location: Location, icon: string): L.Marker {
+  createMarker(location: Location): L.Marker {
+    let icon = '';
+    if (location.information.icon) {
+      icon = location.information.icon;
+    } else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
+      icon = this.mapConfiguration.markerIcon;
+    }
+
     let options = {
         title: location.name,
         icon: new L.Icon({iconUrl: icon}),

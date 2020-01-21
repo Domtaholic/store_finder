@@ -9,6 +9,7 @@
  * LICENSE.txt file that was distributed with this source code.
  */
 
+import * as $ from 'jquery';
 import * as Mustache from 'mustache';
 
 export default class FrontendMap {
@@ -62,22 +63,21 @@ export default class FrontendMap {
     return Mustache.render(this.infoWindowTemplate, location.information)
   }
 
-  createMarker(location: Location, icon: string) {}
+  createMarker(location: Location) {}
+
+  createLayer(location: Location) {}
 
   /**
    * Process single location
    */
   processLocation(this: FrontendMap, location: Location) {
-    let icon = '';
-    if (location.information.icon) {
-      icon = location.information.icon;
-    } else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
-      icon = this.mapConfiguration.markerIcon;
-    }
-
     this.locationIndex++;
     location.information.index = this.locationIndex;
-    location.marker = this.createMarker(location, icon);
+    if (location.information.layer !== '') {
+      this.createLayer(location);
+    } else {
+      this.createMarker(location);
+    }
   }
 
   /**

@@ -41,18 +41,44 @@ declare interface BackendConfiguration {
   zoom: number
 }
 
-declare interface Window {
-    mapConfiguration: MapConfiguration,
-    locations: Array<any>
-}
-
 declare interface Location {
   name: string,
   lat: number,
   lng: number,
   information: {
     index: number,
+    uid: number,
+    lat: number,
+    lng: number,
+    name: string,
+    storeid: string,
+    address: string,
+    additionaladdress: string,
+    city: string,
+    person: string,
+    zipcode: string,
+    products: string,
+    email: string,
+    phone: string,
+    mobile: string,
+    fax: string,
+    hours: string,
+    url: string,
+    notes: string,
+    state: string,
+    country: string,
     icon: string,
+    media: string,
+    image: Array<string>,
+    layer: string,
+    layerCoords: Array<google.maps.LatLng>,
+    attributes: Array<number>,
   },
   marker: any
+}
+
+declare interface Window {
+  mapConfiguration: MapConfiguration,
+  locations: Array<Location>,
+  sfRegister_submitForm: Function
 }

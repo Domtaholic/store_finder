@@ -28,7 +28,8 @@
         icon: <f:render section="image" arguments="{images: location.icon}"/>,
         media: <f:render section="images" arguments="{images: location.media, render: true}"/>,
         image: <f:render section="images" arguments="{images: location.image, render: settings.showStoreImage}"/>,
-        layer: <f:render section="fileUrl" arguments="{files: location.layer}"/>
+        layer: <f:render section="fileUrl" arguments="{files: location.layer}"/>,
+        attributes: <f:render section="uids" arguments="{records: location.attributes}"/>
     }
 }</f:format.raw></f:section>
 
@@ -39,14 +40,13 @@
     </f:if></f:format.raw>
 </f:format.raw></f:section>
 
-<f:section name="images"><f:format.raw>
+<f:section name="images"><f:format.raw>[
     <f:if condition="{images -> f:count()} && {render}">
-        <f:then>[ <f:for each="{images}" as="image" iteration="iterator">
+        <f:then><f:for each="{images}" as="image" iteration="iterator">
             <f:format.json>{f:uri.image(image: image, width: 70)}</f:format.json><f:if condition="!{iterator.isLast}">, </f:if>
-        </f:for>]</f:then>
-        <f:else>""</f:else>
+        </f:for></f:then>
     </f:if>
-</f:format.raw></f:section>
+]</f:format.raw></f:section>
 
 <f:section name="fileUrl"><f:format.raw>
     <f:if condition="{files -> f:count()}">
@@ -54,5 +54,13 @@
         <f:else>""</f:else>
     </f:if>
 </f:format.raw></f:section>
+
+<f:section name="uids"><f:format.raw>[
+    <f:if condition="{records -> f:count()}">
+        <f:then><f:for each="{records}" as="record" iteration="iterator">
+            {record.uid}<f:if condition="!{iterator.isLast}">, </f:if>
+        </f:for></f:then>
+    </f:if>
+]</f:format.raw></f:section>
 
 </html>

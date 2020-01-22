@@ -149,7 +149,10 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
                 $validatorObjectName = $validatorResolver->resolveValidatorObjectName($validateAnnotation->validator);
             }
         }
-        return $this->objectManager->get($validatorObjectName, $validateAnnotation->options);
+
+        /** @var \TYPO3\CMS\Extbase\Validation\Validator\ValidatorInterface $validator */
+        $validator = $this->objectManager->get($validatorObjectName, $validateAnnotation->options);
+        return $validator;
     }
 
     protected function setTypeConverter()
@@ -230,7 +233,7 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         $locations = $this->locationRepository->findByConstraint($constraint);
 
         /** @var QueryResultInterface $locations */
-        list($constraint, $locations) = $this->signalSlotDispatcher->dispatch(
+        [$constraint, $locations] = $this->signalSlotDispatcher->dispatch(
             __CLASS__,
             'mapActionWithConstraint',
             [$constraint, $locations, $this]
@@ -239,9 +242,8 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         if (count($locations) > 0) {
             $center = $this->getCenterOfQueryResult($constraint, $locations);
             $center = $this->setZoomLevel($center, $locations);
-            $this->view->assign('center', $center);
-            $this->view->assign('numberOfLocations', is_object($locations) ? $locations->count() : count($locations));
-            $this->view->assign('locations', $locations);
+
+            $this->addLocationsToView($locations, $center);
             $this->view->assign('afterSearch', 1);
         }
     }
@@ -279,9 +281,8 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
         if (count($locations) > 0) {
             $center = $this->getCenterOfQueryResult($constraint, $locations);
             $center = $this->setZoomLevel($center, $locations);
-            $this->view->assign('center', $center);
-            $this->view->assign('numberOfLocations', count($locations));
-            $this->view->assign('locations', $locations);
+
+            $this->addLocationsToView($locations, $center);
         }
         return $constraint;
     }
@@ -299,10 +300,19 @@ class MapController extends \TYPO3\CMS\Extbase\Mvc\Controller\ActionController
             $center = $location;
             $center->setZoom($this->settings['zoom'] ? $this->settings['zoom'] : 15);
 
-            $this->view->assign('center', $center);
-            $this->view->assign('numberOfLocations', 1);
-            $this->view->assign('locations', [$location]);
+            $this->addLocationsToView([$location], $center);
         }
+    }
+
+    /**
+     * @param array|QueryResultInterface $locations
+     * @param Location $center
+     */
+    protected function addLocationsToView($locations, Location $center)
+    {
+        $this->view->assign('center', $center);
+        $this->view->assign('numberOfLocations', is_object($locations) ? $locations->count() : count($locations));
+        $this->view->assign('locations', $locations);
     }
 
     protected function addCategoryFromSettingsToView()

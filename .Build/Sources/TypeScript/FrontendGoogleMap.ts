@@ -66,36 +66,38 @@ class FrontendGoogleMap extends FrontendMap {
    * Initialize information layer on map
    */
   initializeLayer(this: FrontendGoogleMap) {
+    // needs to be defined here to have google.maps loaded before accessing the OverlayView class
     this.overlayView = class OverlayView extends google.maps.OverlayView implements OverlayView {
-      image: HTMLImageElement;
       imageContainer: HTMLElement;
       svgUri: string;
       bounds: google.maps.LatLngBounds;
       map: google.maps.Map;
 
-      constructor(svgUri: string, bounds: google.maps.LatLngBounds) {
+      constructor(svgUri: string, bounds: google.maps.LatLngBounds, map: google.maps.Map) {
         super();
 
         this.svgUri = svgUri;
         this.bounds = bounds;
+        this.map = map;
       }
 
       onAdd(this: OverlayView) {
         let div = document.createElement('div');
+        div.id = 'svgLayer';
         div.style.position = 'absolute';
 
         // Load the inline svg element and attach it to the div.
-        this.image = document.createElement('img');
-        this.image.src = this.svgUri;
-        this.image.style.width = '100%';
-        this.image.style.height = '100%';
+        let img = document.createElement('img');
+        img.src = this.svgUri;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        div.appendChild(img);
 
-        div.appendChild(this.image);
         this.imageContainer = div;
+
         // Add the element to the "overlayLayer" pane.
         let panes = this.getPanes();
-        panes.overlayLayer.appendChild(div);
-        console.log(this, 'add');
+        panes.overlayLayer.appendChild(this.imageContainer);
       }
 
       draw(this: OverlayView) {
@@ -211,11 +213,11 @@ class FrontendGoogleMap extends FrontendMap {
   createLayer(location: Location) {
     if (!location.information.layerCoords || location.information.layerCoords.length === 0) {
       let svgBounds = new google.maps.LatLngBounds(
-        new google.maps.LatLng(location.lat - 0.01, location.lng - 0.01),
-        new google.maps.LatLng(location.lat + 0.01, location.lng + 0.01)
+        new google.maps.LatLng(location.lat - 0.005, location.lng - 0.01),
+        new google.maps.LatLng(location.lat + 0.005, location.lng + 0.01)
       );
 
-      let layer = new this.overlayView(location.information.layer, svgBounds);
+      let layer = new this.overlayView(location.information.layer, svgBounds, this.map);
       layer.setMap(this.map);
 
       location.marker = layer;

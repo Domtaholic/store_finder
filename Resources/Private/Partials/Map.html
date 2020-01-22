@@ -15,7 +15,7 @@
 	<f:variable name="latitude"><f:format.number decimals="7"><f:if condition="{center.latitude}"><f:then>{center.latitude}</f:then><f:else>{constraint.latitude}</f:else></f:if></f:format.number></f:variable>
 	<f:variable name="longitude"><f:format.number decimals="7"><f:if condition="{center.longitude}"><f:then>{center.longitude}</f:then><f:else>{constraint.longitude}</f:else></f:if></f:format.number></f:variable>
 	<f:variable name="mapConfiguration">
-		var mapConfiguration = {
+		var mapConfiguration = {<f:format.raw/>
 		active: true,
 		zoom: {zoom},
 		apiConsoleKey: "{settings.apiConsoleKey}",
@@ -32,7 +32,7 @@
 		var locations = [
 		<f:for each="{locations}" as="location" iteration="loop">
 			<f:render partial="LocationJson" section="content" arguments="{_all}"/>
-			<f:if condition="{loop.isLast}"><f:then/><f:else>,</f:else></f:if>
+			<f:if condition="!{loop.isLast}">,</f:if>
 		</f:for>
 		];
 	</f:variable>

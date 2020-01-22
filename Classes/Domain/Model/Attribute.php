@@ -16,6 +16,11 @@ namespace Evoweb\StoreFinder\Domain\Model;
 class Attribute extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
 {
     /**
+     * @var int
+     */
+    protected $sorting;
+
+    /**
      * Image
      *
      * @var \TYPO3\CMS\Extbase\Domain\Model\FileReference
@@ -27,6 +32,14 @@ class Attribute extends \TYPO3\CMS\Extbase\DomainObject\AbstractEntity
      * @var string
      */
     protected $name;
+
+    /**
+     * @return int
+     */
+    public function getSorting(): int
+    {
+        return $this->sorting;
+    }
 
     /**
      * @return \TYPO3\CMS\Extbase\Domain\Model\FileReference

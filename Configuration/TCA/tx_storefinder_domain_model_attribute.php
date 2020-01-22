@@ -118,6 +118,12 @@ return [
                 'default' => ''
             ]
         ],
+        'sorting' => [
+            'config' => [
+                'type' => 'passthrough',
+                'default' => 0
+            ]
+        ],
 
         'name' => [
             'label' => $languageFile . 'tx_storefinder_domain_model_attribute.name',

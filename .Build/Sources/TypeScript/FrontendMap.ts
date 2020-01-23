@@ -9,7 +9,6 @@
  * LICENSE.txt file that was distributed with this source code.
  */
 
-import * as $ from 'jquery';
 import * as Mustache from 'mustache';
 
 export default class FrontendMap {
@@ -71,12 +70,14 @@ export default class FrontendMap {
    * Process single location
    */
   processLocation(this: FrontendMap, location: Location) {
-    this.locationIndex++;
-    location.information.index = this.locationIndex;
-    if (location.information.layer !== '') {
-      this.createLayer(location);
-    } else {
-      this.createMarker(location);
+    if (!location.marker) {
+      this.locationIndex++;
+      location.information.index = this.locationIndex;
+      if (location.information.layer !== '') {
+        this.createLayer(location);
+      } else {
+        this.createMarker(location);
+      }
     }
   }
 

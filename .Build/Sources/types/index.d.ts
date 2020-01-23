@@ -43,6 +43,7 @@ declare interface BackendConfiguration {
 
 declare interface Location {
   name: string,
+  hidden: number,
   lat: number,
   lng: number,
   information: {

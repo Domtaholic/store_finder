@@ -9,7 +9,6 @@
  * LICENSE.txt file that was distributed with this source code.
  */
 
-import * as $ from 'jquery';
 import FrontendMap from './FrontendMap';
 
 /**
@@ -19,12 +18,18 @@ import FrontendMap from './FrontendMap';
  */
 class FrontendGoogleMap extends FrontendMap {
   private map: google.maps.Map;
+
   private infoWindow: google.maps.InfoWindow;
 
   /**
    * Prototype for overview layer
    */
-  private overlayView: any;
+  private OverlayView: any;
+
+  /**
+   * Prototype for marker
+   */
+  private Marker: any;
 
   /**
    * Initialize map
@@ -67,7 +72,7 @@ class FrontendGoogleMap extends FrontendMap {
    */
   initializeLayer(this: FrontendGoogleMap) {
     // needs to be defined here to have google.maps loaded before accessing the OverlayView class
-    this.overlayView = class OverlayView extends google.maps.OverlayView implements OverlayView {
+    this.OverlayView = class OverlayView extends google.maps.OverlayView {
       imageContainer: HTMLElement;
       svgUri: string;
       bounds: google.maps.LatLngBounds;
@@ -118,29 +123,43 @@ class FrontendGoogleMap extends FrontendMap {
       }
 
       hide(this: OverlayView): void {
-        if (this.imageContainer) {
-          // The visibility property must be a string enclosed in quotes.
-          this.imageContainer.style.visibility = 'hidden';
-        }
+        this.setMap(null);
       }
 
       show(this: OverlayView): void {
-        if (this.imageContainer) {
-          this.imageContainer.style.visibility = 'visible';
-        }
+        this.setMap(this.map);
       }
 
-      toggle(this: OverlayView): void {
-        if (this.imageContainer) {
-          if (this.imageContainer.style.visibility === 'hidden') {
-            this.show();
-          } else {
-            this.hide();
-          }
-        }
-      }
-
+      // set to null or this.map to remove or add to dom
       toggleDOM(this: OverlayView): void {
+        if (this.getMap()) {
+          // Note: setMap(null) calls OverlayView.onRemove()
+          this.setMap(null);
+        } else {
+          // Note: setMap(this.map) calls OverlayView.onAdd()
+          this.setMap(this.map);
+        }
+      }
+    };
+
+    this.Marker = class Marker extends google.maps.Marker {
+      map: google.maps.Map;
+
+      constructor(options: Object, map: google.maps.Map) {
+        super(options);
+        this.map = map;
+      }
+
+      hide(this: Marker): void {
+        this.setMap(null);
+      }
+
+      show(this: Marker): void {
+        this.setMap(this.map);
+      }
+
+      // set to null or this.map to remove or add to dom
+      toggleDOM(this: Marker): void {
         if (this.getMap()) {
           // Note: setMap(null) calls OverlayView.onRemove()
           this.setMap(null);
@@ -193,12 +212,13 @@ class FrontendGoogleMap extends FrontendMap {
     }
 
     let options = {
-        title: location.name,
-        position: new google.maps.LatLng(location.lat, location.lng),
-        icon: icon,
-      },
-      marker = new google.maps.Marker(options);
-    marker.setMap(this.map);
+      title: location.name,
+      position: new google.maps.LatLng(location.lat, location.lng),
+      icon: icon,
+    };
+
+    let marker = new this.Marker(options, this.map);
+    (location.hidden ? marker.hide() : marker.show());
 
     marker.addListener('click', () => {
       this.showInformation(location, marker);
@@ -211,17 +231,15 @@ class FrontendGoogleMap extends FrontendMap {
    * Create an info layer and add to map
    */
   createLayer(location: Location) {
-    if (!location.information.layerCoords || location.information.layerCoords.length === 0) {
-      let svgBounds = new google.maps.LatLngBounds(
-        new google.maps.LatLng(location.lat - 0.005, location.lng - 0.01),
-        new google.maps.LatLng(location.lat + 0.005, location.lng + 0.01)
-      );
+    let svgBounds = new google.maps.LatLngBounds(
+      new google.maps.LatLng(location.lat - 0.005, location.lng - 0.01),
+      new google.maps.LatLng(location.lat + 0.005, location.lng + 0.01)
+    );
 
-      let layer = new this.overlayView(location.information.layer, svgBounds, this.map);
-      layer.setMap(this.map);
+    let marker = new this.OverlayView(location.information.layer, svgBounds, this.map);
+    (location.hidden ? marker.hide() : marker.show());
 
-      location.marker = layer;
-    }
+    location.marker = marker;
   }
 
   /**

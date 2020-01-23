@@ -56,7 +56,7 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
                 style: google.maps.ZoomControlStyle.LARGE
             }
         };
-        this.map = new google.maps.Map($('#tx_storefinder_map')[0], mapOptions);
+        this.map = new google.maps.Map(document.getElementById('tx_storefinder_map'), mapOptions);
         if (this.mapConfiguration.afterSearch === 0 && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function (position) {
                 var pos = {
@@ -71,6 +71,89 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
      * Initialize information layer on map
      */
     FrontendGoogleMap.prototype.initializeLayer = function () {
+        // needs to be defined here to have google.maps loaded before accessing the OverlayView class
+        this.OverlayView = /** @class */ (function (_super) {
+            __extends(OverlayView, _super);
+            function OverlayView(svgUri, bounds, map) {
+                var _this = _super.call(this) || this;
+                _this.svgUri = svgUri;
+                _this.bounds = bounds;
+                _this.map = map;
+                return _this;
+            }
+            OverlayView.prototype.onAdd = function () {
+                var div = document.createElement('div');
+                div.id = 'svgLayer';
+                div.style.position = 'absolute';
+                // Load the inline svg element and attach it to the div.
+                var img = document.createElement('img');
+                img.src = this.svgUri;
+                img.style.width = '100%';
+                img.style.height = '100%';
+                div.appendChild(img);
+                this.imageContainer = div;
+                // Add the element to the "overlayLayer" pane.
+                var panes = this.getPanes();
+                panes.overlayLayer.appendChild(this.imageContainer);
+            };
+            OverlayView.prototype.draw = function () {
+                var overlayProjection = this.getProjection(), sw = overlayProjection.fromLatLngToDivPixel(this.bounds.getSouthWest()), ne = overlayProjection.fromLatLngToDivPixel(this.bounds.getNorthEast());
+                var div = this.imageContainer;
+                div.style.left = sw.x + 'px';
+                div.style.top = ne.y + 'px';
+                div.style.width = (ne.x - sw.x) + 'px';
+                div.style.height = (sw.y - ne.y) + 'px';
+            };
+            ;
+            OverlayView.prototype.onRemove = function () {
+                this.imageContainer.parentNode.removeChild(this.imageContainer);
+                this.imageContainer = null;
+            };
+            OverlayView.prototype.hide = function () {
+                this.setMap(null);
+            };
+            OverlayView.prototype.show = function () {
+                this.setMap(this.map);
+            };
+            // set to null or this.map to remove or add to dom
+            OverlayView.prototype.toggleDOM = function () {
+                if (this.getMap()) {
+                    // Note: setMap(null) calls OverlayView.onRemove()
+                    this.setMap(null);
+                }
+                else {
+                    // Note: setMap(this.map) calls OverlayView.onAdd()
+                    this.setMap(this.map);
+                }
+            };
+            return OverlayView;
+        }(google.maps.OverlayView));
+        this.Marker = /** @class */ (function (_super) {
+            __extends(Marker, _super);
+            function Marker(options, map) {
+                var _this = _super.call(this, options) || this;
+                _this.map = map;
+                return _this;
+            }
+            Marker.prototype.hide = function () {
+                this.setMap(null);
+            };
+            Marker.prototype.show = function () {
+                this.setMap(this.map);
+            };
+            // set to null or this.map to remove or add to dom
+            Marker.prototype.toggleDOM = function () {
+                if (this.getMap()) {
+                    // Note: setMap(null) calls OverlayView.onRemove()
+                    this.setMap(null);
+                }
+                else {
+                    // Note: setMap(this.map) calls OverlayView.onAdd()
+                    this.setMap(this.map);
+                }
+            };
+            return Marker;
+        }(google.maps.Marker));
         if (this.mapConfiguration.apiV3Layers.indexOf('traffic') > -1) {
             var trafficLayer = new google.maps.TrafficLayer();
             trafficLayer.setMap(this.map);
@@ -101,18 +184,35 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
     /**
      * Create marker and add to map
      */
-    FrontendGoogleMap.prototype.createMarker = function (location, icon) {
+    FrontendGoogleMap.prototype.createMarker = function (location) {
         var _this = this;
+        var icon = '';
+        if (location.information.icon) {
+            icon = location.information.icon;
+        }
+        else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
+            icon = this.mapConfiguration.markerIcon;
+        }
         var options = {
             title: location.name,
             position: new google.maps.LatLng(location.lat, location.lng),
             icon: icon,
-        }, marker = new google.maps.Marker(options);
-        marker.setMap(this.map);
+        };
+        var marker = new this.Marker(options, this.map);
+        (location.hidden ? marker.hide() : marker.show());
         marker.addListener('click', function () {
             _this.showInformation(location, marker);
         });
-        return marker;
+        location.marker = marker;
+    };
+    /**
+     * Create an info layer and add to map
+     */
+    FrontendGoogleMap.prototype.createLayer = function (location) {
+        var svgBounds = new google.maps.LatLngBounds(new google.maps.LatLng(location.lat - 0.005, location.lng - 0.01), new google.maps.LatLng(location.lat + 0.005, location.lng + 0.01));
+        var marker = new this.OverlayView(location.information.layer, svgBounds, this.map);
+        (location.hidden ? marker.hide() : marker.show());
+        location.marker = marker;
     };
     /**
      * Initialize instance of map infoWindow
@@ -143,12 +243,12 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
         if (self.mapConfiguration.hasOwnProperty('apiUrl')) {
             apiUrl = self.mapConfiguration.apiUrl;
         }
-        var $jsDeferred = $.Deferred(), $jsFile = $('<script/>', {
+        var jsDeferred = $.Deferred(), jsFile = $('<script/>', {
             src: apiUrl + parameter,
             crossorigin: ''
         }).appendTo('head');
-        $jsDeferred.resolve($jsFile);
-        $.when($jsDeferred.promise()).done(function () {
+        jsDeferred.resolve(jsFile);
+        $.when(jsDeferred.promise()).done(function () {
             function wait() {
                 if (typeof google !== 'undefined') {
                     this.postLoadScript();
@@ -224,21 +324,22 @@ var FrontendMap = /** @class */ (function () {
     FrontendMap.prototype.renderInfoWindowContent = function (location) {
         return Mustache.render(this.infoWindowTemplate, location.information);
     };
-    FrontendMap.prototype.createMarker = function (location, icon) { };
+    FrontendMap.prototype.createMarker = function (location) { };
+    FrontendMap.prototype.createLayer = function (location) { };
     /**
      * Process single location
      */
     FrontendMap.prototype.processLocation = function (location) {
-        var icon = '';
-        if (location.information.icon) {
-            icon = location.information.icon;
+        if (!location.marker) {
+            this.locationIndex++;
+            location.information.index = this.locationIndex;
+            if (location.information.layer !== '') {
+                this.createLayer(location);
+            }
+            else {
+                this.createMarker(location);
+            }
         }
-        else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
-            icon = this.mapConfiguration.markerIcon;
-        }
-        this.locationIndex++;
-        location.information.index = this.locationIndex;
-        location.marker = this.createMarker(location, icon);
     };
     /**
      * Initialize location marker on map
@@ -291,23 +392,17 @@ var FrontendMap = /** @class */ (function () {
 exports.default = FrontendMap;
 
 },{"mustache":3}],3:[function(require,module,exports){
-/*!
- * mustache.js - Logic-less {{mustache}} templates with JavaScript
- * http://github.com/janl/mustache.js
- */
+// This file has been generated from mustache.mjs
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+  typeof define === 'function' && define.amd ? define(factory) :
+  (global = global || self, global.Mustache = factory());
+}(this, (function () { 'use strict';
 
-/*global define: false Mustache: true*/
-
-(function defineMustache (global, factory) {
-  if (typeof exports === 'object' && exports && typeof exports.nodeName !== 'string') {
-    factory(exports); // CommonJS
-  } else if (typeof define === 'function' && define.amd) {
-    define(['exports'], factory); // AMD
-  } else {
-    global.Mustache = {};
-    factory(global.Mustache); // script, wsh, asp
-  }
-}(this, function mustacheFactory (mustache) {
+  /*!
+   * mustache.js - Logic-less {{mustache}} templates with JavaScript
+   * http://github.com/janl/mustache.js
+   */
 
   var objectToString = Object.prototype.toString;
   var isArray = Array.isArray || function isArrayPolyfill (object) {
@@ -415,7 +510,7 @@ exports.default = FrontendMap;
   function parseTemplate (template, tags) {
     if (!template)
       return [];
-
+    var lineHasNonSpace = false;
     var sections = [];     // Stack to hold section tokens
     var tokens = [];       // Buffer to hold the tokens
     var spaces = [];       // Indices of whitespace tokens on the current line
@@ -468,10 +563,11 @@ exports.default = FrontendMap;
 
           if (isWhitespace(chr)) {
             spaces.push(tokens.length);
-            if (!nonSpace)
-              indentation += chr;
+            indentation += chr;
           } else {
             nonSpace = true;
+            lineHasNonSpace = true;
+            indentation += ' ';
           }
 
           tokens.push([ 'text', chr, start, start + 1 ]);
@@ -482,6 +578,7 @@ exports.default = FrontendMap;
             stripSpace();
             indentation = '';
             tagIndex = 0;
+            lineHasNonSpace = false;
           }
         }
       }
@@ -515,7 +612,7 @@ exports.default = FrontendMap;
         throw new Error('Unclosed tag at ' + scanner.pos);
 
       if (type == '>') {
-        token = [ type, value, start, scanner.pos, indentation, tagIndex ];
+        token = [ type, value, start, scanner.pos, indentation, tagIndex, lineHasNonSpace ];
       } else {
         token = [ type, value, start, scanner.pos ];
       }
@@ -824,7 +921,7 @@ exports.default = FrontendMap;
    */
   Writer.prototype.render = function render (template, view, partials, tags) {
     var tokens = this.parse(template, tags);
-    var context = (view instanceof Context) ? view : new Context(view);
+    var context = (view instanceof Context) ? view : new Context(view, undefined);
     return this.renderTokens(tokens, context, partials, template, tags);
   };
 
@@ -903,11 +1000,11 @@ exports.default = FrontendMap;
       return this.renderTokens(token[4], context, partials, originalTemplate);
   };
 
-  Writer.prototype.indentPartial = function indentPartial (partial, indentation) {
+  Writer.prototype.indentPartial = function indentPartial (partial, indentation, lineHasNonSpace) {
     var filteredIndentation = indentation.replace(/[^ \t]/g, '');
     var partialByNl = partial.split('\n');
     for (var i = 0; i < partialByNl.length; i++) {
-      if (partialByNl[i].length) {
+      if (partialByNl[i].length && (i > 0 || !lineHasNonSpace)) {
         partialByNl[i] = filteredIndentation + partialByNl[i];
       }
     }
@@ -919,11 +1016,12 @@ exports.default = FrontendMap;
 
     var value = isFunction(partials) ? partials(token[1]) : partials[token[1]];
     if (value != null) {
+      var lineHasNonSpace = token[6];
       var tagIndex = token[5];
       var indentation = token[4];
       var indentedValue = value;
       if (tagIndex == 0 && indentation) {
-        indentedValue = this.indentPartial(value, indentation);
+        indentedValue = this.indentPartial(value, indentation, lineHasNonSpace);
       }
       return this.renderTokens(this.parse(indentedValue, tags), context, partials, indentedValue);
     }
@@ -945,9 +1043,19 @@ exports.default = FrontendMap;
     return token[1];
   };
 
-  mustache.name = 'mustache.js';
-  mustache.version = '3.0.3';
-  mustache.tags = [ '{{', '}}' ];
+  var mustache = {
+    name: 'mustache.js',
+    version: '3.2.1',
+    tags: [ '{{', '}}' ],
+    clearCache: undefined,
+    escape: undefined,
+    parse: undefined,
+    render: undefined,
+    to_html: undefined,
+    Scanner: undefined,
+    Context: undefined,
+    Writer: undefined
+  };
 
   // All high-level mustache.* functions use this writer.
   var defaultWriter = new Writer();
@@ -1008,7 +1116,8 @@ exports.default = FrontendMap;
   mustache.Writer = Writer;
 
   return mustache;
-}));
+
+})));
 
 },{}]},{},[1])
 

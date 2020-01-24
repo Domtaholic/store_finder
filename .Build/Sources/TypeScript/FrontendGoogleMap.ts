@@ -50,8 +50,13 @@ class FrontendGoogleMap extends FrontendMap {
       zoomControl: true,
       zoomControlOptions: {
         style: google.maps.ZoomControlStyle.LARGE
-      }
+      },
+      styles: ([] as Array<object>)
     };
+
+    if (self.mapConfiguration.mapStyles) {
+      mapOptions.styles = self.mapConfiguration.mapStyles;
+    }
 
     this.map = new google.maps.Map(document.getElementById('tx_storefinder_map'), mapOptions);
 

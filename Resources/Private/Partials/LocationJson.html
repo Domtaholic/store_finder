@@ -26,7 +26,7 @@
         notes: {location.notes -> f:format.json()},
         state: {location.state.localName -> f:format.json()},
         country: {location.country.shortNameLocal -> f:format.json()},
-        icon: <f:render section="image" arguments="{images: location.icon}"/>,
+        icon: <f:render section="icon" arguments="{icon: location.icon}"/>,
         media: <f:render section="images" arguments="{images: location.media, render: true}"/>,
         image: <f:render section="images" arguments="{images: location.image, render: settings.showStoreImage}"/>,
         layer: <f:render section="fileUrl" arguments="{files: location.layer}"/>,
@@ -34,26 +34,20 @@
     }
 }</f:format.raw></f:section>
 
-<f:section name="image"><f:format.raw>
-    <f:format.raw><f:if condition="{images -> f:count()}">
-        <f:then><f:format.json>{f:uri.image(src: images.0) -> f:format.json()}</f:format.json></f:then>
-        <f:else>""</f:else>
-    </f:if></f:format.raw>
+<f:section name="icon"><f:format.raw>
+    <f:format.json><f:if condition="{icon.0}">{f:uri.image(image: icon.0)}</f:if></f:format.json>
 </f:format.raw></f:section>
 
 <f:section name="images"><f:format.raw>[
     <f:if condition="{images -> f:count()} && {render}">
         <f:then><f:for each="{images}" as="image" iteration="iterator">
-            <f:format.json>{f:uri.image(image: image, width: 70)}</f:format.json><f:if condition="!{iterator.isLast}">, </f:if>
+            {f:uri.image(image: image, width: 70) -> f:format.json()}<f:if condition="!{iterator.isLast}">, </f:if>
         </f:for></f:then>
     </f:if>
 ]</f:format.raw></f:section>
 
 <f:section name="fileUrl"><f:format.raw>
-    <f:if condition="{files -> f:count()}">
-        <f:then><f:format.json>/{files.0.originalResource.publicUrl}</f:format.json></f:then>
-        <f:else>""</f:else>
-    </f:if>
+    <f:format.json><f:if condition="{files -> f:count()}">/{files.0.originalResource.publicUrl}</f:if></f:format.json>
 </f:format.raw></f:section>
 
 <f:section name="uids"><f:format.raw>[

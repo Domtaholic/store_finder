@@ -54,9 +54,13 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
             zoomControl: true,
             zoomControlOptions: {
                 style: google.maps.ZoomControlStyle.LARGE
-            }
+            },
+            styles: []
         };
-        this.map = new google.maps.Map(document.getElementById('tx_storefinder_map'), mapOptions);
+        if (self.mapConfiguration.mapStyles) {
+            mapOptions.styles = self.mapConfiguration.mapStyles;
+        }
+        this.map = new google.maps.Map($('#tx_storefinder_map')[0], mapOptions);
         if (this.mapConfiguration.afterSearch === 0 && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function (position) {
                 var pos = {
@@ -71,89 +75,6 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
      * Initialize information layer on map
      */
     FrontendGoogleMap.prototype.initializeLayer = function () {
-        // needs to be defined here to have google.maps loaded before accessing the OverlayView class
-        this.OverlayView = /** @class */ (function (_super) {
-            __extends(OverlayView, _super);
-            function OverlayView(svgUri, bounds, map) {
-                var _this = _super.call(this) || this;
-                _this.svgUri = svgUri;
-                _this.bounds = bounds;
-                _this.map = map;
-                return _this;
-            }
-            OverlayView.prototype.onAdd = function () {
-                var div = document.createElement('div');
-                div.id = 'svgLayer';
-                div.style.position = 'absolute';
-                // Load the inline svg element and attach it to the div.
-                var img = document.createElement('img');
-                img.src = this.svgUri;
-                img.style.width = '100%';
-                img.style.height = '100%';
-                div.appendChild(img);
-                this.imageContainer = div;
-                // Add the element to the "overlayLayer" pane.
-                var panes = this.getPanes();
-                panes.overlayLayer.appendChild(this.imageContainer);
-            };
-            OverlayView.prototype.draw = function () {
-                var overlayProjection = this.getProjection(), sw = overlayProjection.fromLatLngToDivPixel(this.bounds.getSouthWest()), ne = overlayProjection.fromLatLngToDivPixel(this.bounds.getNorthEast());
-                var div = this.imageContainer;
-                div.style.left = sw.x + 'px';
-                div.style.top = ne.y + 'px';
-                div.style.width = (ne.x - sw.x) + 'px';
-                div.style.height = (sw.y - ne.y) + 'px';
-            };
-            ;
-            OverlayView.prototype.onRemove = function () {
-                this.imageContainer.parentNode.removeChild(this.imageContainer);
-                this.imageContainer = null;
-            };
-            OverlayView.prototype.hide = function () {
-                this.setMap(null);
-            };
-            OverlayView.prototype.show = function () {
-                this.setMap(this.map);
-            };
-            // set to null or this.map to remove or add to dom
-            OverlayView.prototype.toggleDOM = function () {
-                if (this.getMap()) {
-                    // Note: setMap(null) calls OverlayView.onRemove()
-                    this.setMap(null);
-                }
-                else {
-                    // Note: setMap(this.map) calls OverlayView.onAdd()
-                    this.setMap(this.map);
-                }
-            };
-            return OverlayView;
-        }(google.maps.OverlayView));
-        this.Marker = /** @class */ (function (_super) {
-            __extends(Marker, _super);
-            function Marker(options, map) {
-                var _this = _super.call(this, options) || this;
-                _this.map = map;
-                return _this;
-            }
-            Marker.prototype.hide = function () {
-                this.setMap(null);
-            };
-            Marker.prototype.show = function () {
-                this.setMap(this.map);
-            };
-            // set to null or this.map to remove or add to dom
-            Marker.prototype.toggleDOM = function () {
-                if (this.getMap()) {
-                    // Note: setMap(null) calls OverlayView.onRemove()
-                    this.setMap(null);
-                }
-                else {
-                    // Note: setMap(this.map) calls OverlayView.onAdd()
-                    this.setMap(this.map);
-                }
-            };
-            return Marker;
-        }(google.maps.Marker));
         if (this.mapConfiguration.apiV3Layers.indexOf('traffic') > -1) {
             var trafficLayer = new google.maps.TrafficLayer();
             trafficLayer.setMap(this.map);
@@ -184,35 +105,18 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
     /**
      * Create marker and add to map
      */
-    FrontendGoogleMap.prototype.createMarker = function (location) {
+    FrontendGoogleMap.prototype.createMarker = function (location, icon) {
         var _this = this;
-        var icon = '';
-        if (location.information.icon) {
-            icon = location.information.icon;
-        }
-        else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
-            icon = this.mapConfiguration.markerIcon;
-        }
         var options = {
             title: location.name,
             position: new google.maps.LatLng(location.lat, location.lng),
             icon: icon,
-        };
-        var marker = new this.Marker(options, this.map);
-        (location.hidden ? marker.hide() : marker.show());
+        }, marker = new google.maps.Marker(options);
+        marker.setMap(this.map);
         marker.addListener('click', function () {
             _this.showInformation(location, marker);
         });
-        location.marker = marker;
-    };
-    /**
-     * Create an info layer and add to map
-     */
-    FrontendGoogleMap.prototype.createLayer = function (location) {
-        var svgBounds = new google.maps.LatLngBounds(new google.maps.LatLng(location.lat - 0.005, location.lng - 0.01), new google.maps.LatLng(location.lat + 0.005, location.lng + 0.01));
-        var marker = new this.OverlayView(location.information.layer, svgBounds, this.map);
-        (location.hidden ? marker.hide() : marker.show());
-        location.marker = marker;
+        return marker;
     };
     /**
      * Initialize instance of map infoWindow
@@ -243,12 +147,12 @@ var FrontendGoogleMap = /** @class */ (function (_super) {
         if (self.mapConfiguration.hasOwnProperty('apiUrl')) {
             apiUrl = self.mapConfiguration.apiUrl;
         }
-        var jsDeferred = $.Deferred(), jsFile = $('<script/>', {
+        var $jsDeferred = $.Deferred(), $jsFile = $('<script/>', {
             src: apiUrl + parameter,
             crossorigin: ''
         }).appendTo('head');
-        jsDeferred.resolve(jsFile);
-        $.when(jsDeferred.promise()).done(function () {
+        $jsDeferred.resolve($jsFile);
+        $.when($jsDeferred.promise()).done(function () {
             function wait() {
                 if (typeof google !== 'undefined') {
                     this.postLoadScript();
@@ -324,22 +228,21 @@ var FrontendMap = /** @class */ (function () {
     FrontendMap.prototype.renderInfoWindowContent = function (location) {
         return Mustache.render(this.infoWindowTemplate, location.information);
     };
-    FrontendMap.prototype.createMarker = function (location) { };
-    FrontendMap.prototype.createLayer = function (location) { };
+    FrontendMap.prototype.createMarker = function (location, icon) { };
     /**
      * Process single location
      */
     FrontendMap.prototype.processLocation = function (location) {
-        if (!location.marker) {
-            this.locationIndex++;
-            location.information.index = this.locationIndex;
-            if (location.information.layer !== '') {
-                this.createLayer(location);
-            }
-            else {
-                this.createMarker(location);
-            }
+        var icon = '';
+        if (location.information.icon) {
+            icon = location.information.icon;
         }
+        else if (this.mapConfiguration.hasOwnProperty('markerIcon')) {
+            icon = this.mapConfiguration.markerIcon;
+        }
+        this.locationIndex++;
+        location.information.index = this.locationIndex;
+        location.marker = this.createMarker(location, icon);
     };
     /**
      * Initialize location marker on map

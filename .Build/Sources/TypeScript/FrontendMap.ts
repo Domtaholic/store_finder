@@ -73,7 +73,7 @@ export default class FrontendMap {
     if (!location.marker) {
       this.locationIndex++;
       location.information.index = this.locationIndex;
-      if (location.information.layer !== '') {
+      if (location.information.layer !== null && location.information.layer !== '') {
         this.createLayer(location);
       } else {
         this.createMarker(location);

@@ -196,7 +196,7 @@ class FrontendGoogleMap extends FrontendMap {
    */
   showInformation(this: FrontendGoogleMap, location: Location, marker: any) {
     if (typeof this.mapConfiguration.renderSingleViewCallback === 'function') {
-      this.mapConfiguration.renderSingleViewCallback(location, this.infoWindowTemplate);
+      this.mapConfiguration.renderSingleViewCallback(location, this.infoWindowTemplate, marker);
     } else {
       this.infoWindow.close();
       this.infoWindow.setContent(this.renderInfoWindowContent(location));

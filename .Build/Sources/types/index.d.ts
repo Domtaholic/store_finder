@@ -31,8 +31,8 @@ declare interface MapConfiguration {
   kmlUrl: string,
   mapStyles?: Array<object>,
 
-  renderSingleViewCallback(location: object, template: string): void,
-  handleCloseButtonCallback(button: object): void,
+  renderSingleViewCallback(location: object, template: string, marker: any): void,
+  handleCloseButtonCallback(event: Event, button: object): void,
 }
 
 declare interface BackendConfiguration {

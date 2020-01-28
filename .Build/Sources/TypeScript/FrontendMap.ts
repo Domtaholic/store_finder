@@ -112,7 +112,7 @@ export default class FrontendMap {
 
     $(document).on('click', '.tx-storefinder .infoWindow .close', (event: Event, $closeButton: JQuery): void => {
       if (typeof this.mapConfiguration.renderSingleViewCallback === 'function') {
-        this.mapConfiguration.handleCloseButtonCallback($closeButton);
+        this.mapConfiguration.handleCloseButtonCallback(event, $closeButton);
       } else {
         this.closeInfoWindow();
       }
